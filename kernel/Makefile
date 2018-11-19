@@ -128,7 +128,11 @@ targets += config_data.gz
 ifeq ($(CONFIG_MACH_XIAOMI_TISSOT),y)
 $(obj)/config_data.gz: arch/arm64/configs/tissot_defconfig FORCE
 else
-$(obj)/config_data.gz: $(KCONFIG_CONFIG) FORCE
+    ifeq ($(CONFIG_MACH_XIAOMI_TIFFANY),y)
+        $(obj)/config_data.gz: arch/arm64/configs/tiffany_defconfig FORCE
+    else
+        $(obj)/config_data.gz: $(KCONFIG_CONFIG) FORCE
+    endif
 endif
 	$(call if_changed,gzip)
 
