@@ -320,8 +320,9 @@ static int f2fs_link(struct dentry *old_dentry, struct inode *dir,
 
 	if (unlikely(f2fs_cp_error(sbi)))
 		return -EIO;
-	if (!f2fs_is_checkpoint_ready(sbi))
-		return -ENOSPC;
+	err = f2fs_is_checkpoint_ready(sbi);
+	if (err)
+		return err;
 
 	err = fscrypt_prepare_link(old_dentry, dir, dentry);
 	if (err)
@@ -834,6 +835,7 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct f2fs_dir_entry *old_dir_entry = NULL;
 	struct f2fs_dir_entry *old_entry;
 	struct f2fs_dir_entry *new_entry;
+	bool is_old_inline = f2fs_has_inline_dentry(old_dir);
 	int err;
 
 	if (unlikely(f2fs_cp_error(sbi)))
@@ -845,26 +847,6 @@ static int f2fs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			(!projid_eq(F2FS_I(new_dir)->i_projid,
 			F2FS_I(old_dentry->d_inode)->i_projid)))
 		return -EXDEV;
-
-	/*
-	 * If new_inode is null, the below renaming flow will
-	 * add a link in old_dir which can conver inline_dir.
-	 * After then, if we failed to get the entry due to other
-	 * reasons like ENOMEM, we had to remove the new entry.
-	 * Instead of adding such the error handling routine, let's
-	 * simply convert first here.
-	 */
-	if (old_dir == new_dir && !new_inode) {
-		err = f2fs_try_convert_inline_dir(old_dir, new_dentry);
-		if (err)
-			return err;
-	}
-
-	if (flags & RENAME_WHITEOUT) {
-		err = f2fs_create_whiteout(old_dir, &whiteout);
-		if (err)
-			return err;
-	}
 
 	err = dquot_initialize(old_dir);
 	if (err)
